@@ -5,6 +5,7 @@ pickers at the root, the stylesheet and the images. Texts live in tools/content_
 Usage (from the repo root):  python3 tools/build.py [--shots ../boxes-ios/fastlane/screenshots] [--raw ../boxes-ios/build/screenshots/raw]
 Needs Pillow only for the screenshots (`python3 -m pip install Pillow`); without --shots they are kept as they are.
 """
+import hashlib
 import html
 import shutil
 import sys
@@ -164,6 +165,10 @@ ROOT_SCRIPT = """\
 </script>"""
 
 
+# A changing query keeps browsers and the CDN from serving an old stylesheet next to new pages.
+CSS_VERSION = hashlib.sha1(STYLE.encode()).hexdigest()[:8]
+
+
 def esc(text: str) -> str:
     return html.escape(text, quote=False)
 
@@ -187,7 +192,7 @@ def head(lang: dict, page: str, title: str, description: str, depth: str = "../"
 <meta property="og:description" content="{html.escape(description)}">
 <meta property="og:image" content="https://haker.dev/boxes-public/assets/icon.png">
 <link rel="icon" href="{depth}assets/icon.png">
-<link rel="stylesheet" href="{depth}assets/style.css">
+<link rel="stylesheet" href="{depth}assets/style.css?v={CSS_VERSION}">
 {alternates}
 <link rel="alternate" hreflang="x-default" href="../en/{page}">
 </head>
@@ -340,7 +345,7 @@ def picker(page: str, titles: dict) -> str:
 <title>Boxes · Kartony</title>
 <meta name="description" content="Boxes (Kartony): an inventory of your boxes with QR labels, for iPhone, iPad and Mac. Choose your language.">
 <link rel="icon" href="assets/icon.png">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v={CSS_VERSION}">
 {ROOT_SCRIPT % page}
 </head>
 <body>
