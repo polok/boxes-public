@@ -2,7 +2,7 @@
 """Builds the static site: <lang>/{index,privacy,terms,support}.html for eight languages, the language
 pickers at the root, the stylesheet and the images. Texts live in tools/content_*.py.
 
-Usage (from the repo root):  python3 tools/build.py [--shots ../boxes-ios/fastlane/screenshots]
+Usage (from the repo root):  python3 tools/build.py [--shots ../boxes-ios/fastlane/screenshots] [--raw ../boxes-ios/build/screenshots/raw]
 Needs Pillow only for the screenshots (`python3 -m pip install Pillow`); without --shots they are kept as they are.
 """
 import html
@@ -15,6 +15,7 @@ from content_de_fr import DE, FR  # noqa: E402
 from content_en_pl import EN, PL  # noqa: E402
 from content_es_it import ES, IT  # noqa: E402
 from content_ja_zh import JA, ZH  # noqa: E402
+from demo import DEMO, SHOTS_BOXES, SHOTS_MOVE  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 LANGS = [PL, EN, DE, IT, ES, FR, ZH, JA]
@@ -121,7 +122,31 @@ footer{margin-top:46px;color:var(--soft);font-size:13px;display:flex;gap:6px 18p
 .cta h2{margin:0 0 4px;color:#fff;font-size:clamp(24px,3.4vw,34px);line-height:1.15;font-weight:800;letter-spacing:-.015em}
 .cta p{margin:0;color:rgba(255,255,255,.86)}
 .cta .btn{background:#fff;color:#232A3D}
+.demo-lead{color:var(--soft);margin:-14px 0 22px;max-width:36em}
+.tabs{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:var(--card);border:1px solid var(--border);margin:0 0 26px}
+.tabs button{font:inherit;font-weight:700;font-size:15px;padding:9px 20px;border-radius:999px;border:0;background:transparent;color:var(--soft);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--accent);color:var(--on)}
+.case{display:none;grid-template-columns:minmax(0,1fr) 300px;gap:48px;align-items:center}
+.case.on{display:grid}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.steps button{font:inherit;text-align:left;width:100%;display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border-radius:18px;border:1px solid var(--border);background:var(--card);color:var(--ink);cursor:pointer;position:relative;overflow:hidden;transition:border-color .2s,background .2s}
+.steps button .n{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;background:var(--tint);color:var(--accent)}
+.steps button b{display:block;font-size:17px;line-height:1.3}
+.steps button span.t{display:block;color:var(--soft);font-size:14.5px;line-height:1.45;max-height:0;opacity:0;overflow:hidden;transition:max-height .3s,opacity .3s,margin .3s}
+.steps button[aria-current=step]{border-color:var(--accent)}
+.steps button[aria-current=step] .n{background:var(--accent);color:var(--on)}
+.steps button[aria-current=step] span.t{max-height:6em;opacity:1;margin-top:4px}
+.steps button i{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--accent);opacity:.55}
+.steps button.run i{animation:fill var(--dur,3.8s) linear forwards}
+@keyframes fill{to{width:100%}}
+.phone{justify-self:center;width:100%;max-width:300px;border-radius:46px;padding:9px;background:#151823;box-shadow:var(--shadow);position:relative}
+.phone .screen{position:relative;border-radius:38px;overflow:hidden;aspect-ratio:1320/2868;background:var(--bg)}
+.phone img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .45s}
+.phone img.on{opacity:1}
+.demo-ctl{margin-top:14px;font:inherit;font-weight:700;font-size:13px;color:var(--soft);background:none;border:0;cursor:pointer;padding:6px 0}
+@media (prefers-reduced-motion:reduce){.steps button i{display:none}.phone img{transition:none}}
 @media (max-width:820px){
+  .case.on{grid-template-columns:1fr;gap:26px}.case .phone{order:-1;max-width:260px}
   .hero{grid-template-columns:1fr;gap:28px}.posters{max-width:420px;margin:0 auto;width:100%}
   .grid{grid-template-columns:1fr}.trio{grid-template-columns:1fr;max-width:420px;margin-inline:auto}
 }
@@ -213,6 +238,56 @@ def poster(lang: dict, shot: str, alt: str, cls: str = "", lazy: bool = True) ->
             f' alt="{html.escape(alt)}" width="{SHOT_W}" height="{SHOT_H}"{loading}>')
 
 
+DEMO_SCRIPT = """\
+<script>
+(function(){
+  var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('.demo').forEach(function(demo){
+    var tabs=demo.querySelectorAll('[role=tab]'),cases=demo.querySelectorAll('.case'),ctl=demo.querySelector('.demo-ctl');
+    var cur=0,idx=[0,0],timer=null,paused=reduce,visible=false,ms=3800;
+    function show(c,i){
+      var steps=cases[c].querySelectorAll('.steps button'),imgs=cases[c].querySelectorAll('.phone img');
+      idx[c]=i;
+      steps.forEach(function(b,k){b.classList.remove('run');if(k===i){b.setAttribute('aria-current','step');void b.offsetWidth;if(!paused)b.classList.add('run');}else b.removeAttribute('aria-current');});
+      imgs.forEach(function(m,k){m.classList.toggle('on',k===i);});
+    }
+    function stop(){clearTimeout(timer);timer=null;}
+    function tick(){stop();if(paused||!visible)return;timer=setTimeout(function(){var n=cases[cur].querySelectorAll('.steps button').length;show(cur,(idx[cur]+1)%n);tick();},ms);}
+    function pick(c){
+      cur=c;tabs.forEach(function(t,k){t.setAttribute('aria-selected',k===c);});
+      cases.forEach(function(el,k){el.classList.toggle('on',k===c);});
+      show(c,0);tick();
+    }
+    tabs.forEach(function(t,k){t.addEventListener('click',function(){pick(k);});});
+    cases.forEach(function(el,c){el.querySelectorAll('.steps button').forEach(function(b,i){b.addEventListener('click',function(){show(c,i);tick();});});});
+    if(ctl)ctl.addEventListener('click',function(){paused=!paused;ctl.textContent=paused?ctl.dataset.play:ctl.dataset.pause;show(cur,idx[cur]);tick();});
+    if(ctl)ctl.textContent=paused?ctl.dataset.play:ctl.dataset.pause;
+    if('IntersectionObserver' in window)new IntersectionObserver(function(e){visible=e[0].isIntersecting;if(visible)show(cur,idx[cur]);tick();},{threshold:.35}).observe(demo);else{visible=true;}
+    pick(0);
+  });
+})();
+</script>
+"""
+
+
+def demo_html(lang: dict) -> str:
+    d = DEMO[lang["folder"]]
+    tabs = "".join(
+        f'<button role="tab" type="button" aria-selected="{str(i == 0).lower()}">{esc(t)}</button>' for i, t in enumerate(d["tabs"]))
+    cases = []
+    for key, shots in (("move", SHOTS_MOVE), ("boxes", SHOTS_BOXES)):
+        steps = "".join(
+            f'<li><button type="button"><span class="n">{n}</span><div><b>{esc(t)}</b><span class="t">{esc(x)}</span></div><i></i></button></li>'
+            for n, (t, x) in enumerate(d[key], start=1))
+        imgs = "".join(
+            f'<img src="../assets/shots/{lang["folder"]}-demo-{name}.jpg" alt="{html.escape(d[key][k][0])}" width="420" height="912" loading="lazy">'
+            for k, name in enumerate(shots))
+        cases.append(f'<div class="case"><ol class="steps">{steps}</ol><div class="phone"><div class="screen">{imgs}</div></div></div>')
+    return (f'<section class="band demo"><h2 class="sec-title">{esc(d["title"])}</h2><p class="demo-lead">{esc(d["lead"])}</p>'
+            f'<div class="tabs" role="tablist">{tabs}</div>' + "".join(cases) +
+            f'<button type="button" class="demo-ctl" data-pause="{html.escape(d["pause"])}" data-play="{html.escape(d["play"])}"></button></section>\n')
+
+
 def index_page(lang: dict) -> str:
     c = lang["index"]
     name = lang["app_name"]
@@ -235,12 +310,13 @@ def index_page(lang: dict) -> str:
             f'<a class="btn ghost" href="#features">{esc(c["see"])}</a></div>'
             f'<ul class="facts">{chips}</ul></div>'
             f'<div class="posters">{poster(lang, HERO_SHOTS[0], name, "p1", lazy=False)}{poster(lang, HERO_SHOTS[1], name, "p2", lazy=False)}</div></header>\n'
+            + demo_html(lang) +
             f'<section id="features" class="band" style="padding-top:8px"><h2 class="sec-title">{esc(c["features_title"])}</h2><div class="grid">' + "".join(groups) + "</div></section>\n"
             f'<section class="band"><h2 class="sec-title">{esc(c["screens_title"])}</h2><div class="trio">{trio}</div></section>\n'
             f'<section class="band langs-sec"><h2 class="sec-title">{esc(c["langs_title"])}</h2><p>{esc(c["langs_text"])}</p><ul class="pills">{pills}</ul></section>\n'
             f'<div class="cta"><div><h2>{esc(c["cta_title"])}</h2><p>{esc(c["cta_text"])}</p></div>'
             f'<a class="btn" href="{APP_STORE}">{esc(c["download"])}</a></div>\n'
-            f'<p class="note">{esc(c["note"])}</p>\n' + footer(lang))
+            f'<p class="note">{esc(c["note"])}</p>\n' + DEMO_SCRIPT + footer(lang))
 
 
 def text_page(lang: dict, kind: str) -> str:
@@ -297,12 +373,32 @@ def build_shots(shots_dir: Path) -> None:
                 out / f"{folder}-{shot}.jpg", "JPEG", quality=84, optimize=True, progressive=True)
 
 
+def build_demo_shots(raw_dir: Path) -> None:
+    """The phone screens of the walkthrough: raw simulator captures, scaled down."""
+    from PIL import Image
+    out = ROOT / "assets" / "shots"
+    out.mkdir(parents=True, exist_ok=True)
+    for old in out.glob("*-demo-*.jpg"):
+        old.unlink()
+    for folder, source in SHOT_FOLDERS.items():
+        for name in SHOTS_MOVE + SHOTS_BOXES:
+            path = raw_dir / source / f"{name}.png"
+            if not path.exists():
+                print("missing", path)
+                continue
+            im = Image.open(path).convert("RGB")
+            im.resize((420, round(im.height * 420 / im.width)), Image.LANCZOS).save(
+                out / f"{folder}-demo-{name}.jpg", "JPEG", quality=82, optimize=True, progressive=True)
+
+
 def main() -> None:
     assets = ROOT / "assets"
     (assets / "fonts").mkdir(parents=True, exist_ok=True)
     (assets / "style.css").write_text(STYLE, encoding="utf-8")
     if "--shots" in sys.argv:
         build_shots(Path(sys.argv[sys.argv.index("--shots") + 1]).resolve())
+    if "--raw" in sys.argv:
+        build_demo_shots(Path(sys.argv[sys.argv.index("--raw") + 1]).resolve())
     for lang in LANGS:
         folder = ROOT / lang["folder"]
         folder.mkdir(exist_ok=True)
