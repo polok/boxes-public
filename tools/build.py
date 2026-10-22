@@ -239,7 +239,7 @@ def blocks_html(lang: dict, blocks) -> str:
 
 def poster(lang: dict, shot: str, alt: str, cls: str = "", lazy: bool = True) -> str:
     loading = ' loading="lazy"' if lazy else ""
-    return (f'<img{f" class={chr(34)}{cls}{chr(34)}" if cls else ""} src="../assets/shots/{lang["folder"]}-{shot}.jpg"'
+    return (f'<img{f" class={chr(34)}{cls}{chr(34)}" if cls else ""} src="../assets/shots/{lang["folder"]}-{shot}.jpg?v={file_version(f"{lang['folder']}-{shot}.jpg")}"'
             f' alt="{html.escape(alt)}" width="{SHOT_W}" height="{SHOT_H}"{loading}>')
 
 
@@ -275,6 +275,13 @@ DEMO_SCRIPT = """\
 """
 
 
+def file_version(name: str) -> str:
+    """A short hash of an image in assets/shots: a changed or newly added file gets a new URL, so a cached miss or an
+    old copy is never served."""
+    path = ROOT / "assets" / "shots" / name
+    return hashlib.sha1(path.read_bytes()).hexdigest()[:8] if path.exists() else "0"
+
+
 def demo_html(lang: dict) -> str:
     d = DEMO[lang["folder"]]
     tabs = "".join(
@@ -285,7 +292,7 @@ def demo_html(lang: dict) -> str:
             f'<li><button type="button"><span class="n">{n}</span><div><b>{esc(t)}</b><span class="t">{esc(x)}</span></div><i></i></button></li>'
             for n, (t, x) in enumerate(d[key], start=1))
         imgs = "".join(
-            f'<img src="../assets/shots/{lang["folder"]}-demo-{name}.jpg" alt="{html.escape(d[key][k][0])}" width="420" height="912" loading="lazy">'
+            f'<img src="../assets/shots/{lang["folder"]}-demo-{name}.jpg?v={file_version(f"{lang['folder']}-demo-{name}.jpg")}" alt="{html.escape(d[key][k][0])}" width="420" height="912" loading="lazy">'
             for k, name in enumerate(shots))
         cases.append(f'<div class="case"><ol class="steps">{steps}</ol><div class="phone"><div class="screen">{imgs}</div></div></div>')
     return (f'<section class="band demo"><h2 class="sec-title">{esc(d["title"])}</h2><p class="demo-lead">{esc(d["lead"])}</p>'
